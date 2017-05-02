@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="var" path="JARS_REPO/jackson-all-1.9.11.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/java-json.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/mysql-connector-java-5.1.40-bin.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/javax.ws.rs.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/javax.mail.jar" sourcepath="/JARS_REPO"/>
+	<classpathentry kind="var" path="JARS_REPO/poi-3.15.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/poi-excelant-3.15.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/poi-ooxml-3.15.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/poi-ooxml-schemas-3.15.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/poi-scratchpad-3.15.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/xmlbeans-2.6.0.jar"/>
+	<classpathentry kind="var" path="JARS_REPO/commons-collections4-4.1.jar"/>
+	<classpathentry kind="var" path="JARS_REPO"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
