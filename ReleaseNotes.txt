@@ -1,0 +1,8 @@
+Ver. 0.0.1
+----------
+Initial release under git with:
+- database connection and a generic bean class;
+- basic 'utils' class: time, string and filesystem management;
+- internet get url/images methods;
+- gmail send email method;
+- basic excel management.
