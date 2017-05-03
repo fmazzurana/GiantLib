@@ -73,6 +73,8 @@ public class GMail {
 			message.addRecipient(Message.RecipientType.TO, new InternetAddress(toAddr));
 			message.setSubject(subject);
 			message.setText(text);
+//			Multipart mp = new MimeMultipart();
+//			message.setContent(mp);
 
 			// Send message
 			Transport transport = session.getTransport("smtp");
