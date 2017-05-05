@@ -1,13 +1,15 @@
 package database;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import commons.MyException;
@@ -19,7 +21,7 @@ public class Database {
 	private String user, password, connStr;
 	
 	/**
-	 * Constructor
+	 * Constructor: gets the db properties.
 	 * The property file must contain the 'db.*' properties
 	 * 
 	 * @param propFile
@@ -46,105 +48,93 @@ public class Database {
 	// --------------------------------------------------------------------------------
 	// PUBLICS
 	// --------------------------------------------------------------------------------
-
-	public List<Object> callProc(String procName) throws Exception {
-		return callProc(procName, null);
+	/**
+	 * Calls a stored procedure
+	 *  
+	 * @param procName Name of the SP
+	 * @param procParams [opt] Parameters to be passed to the SP
+	 * @param resBean Resultset bean
+	 * @return Result A List of result beans or null
+	 * @throws DBException
+	 */
+	public <T> List<T> callProcedure(String procName) throws DBException {
+		return callProcedure(procName, null, null);
 	}
 
-	public List<Object> callProc(String procName, DbParamsList dbParams) throws Exception {
+	public <T> List<T> callProcedure(String procName, DbParamsList procParams) throws DBException {
+		return callProcedure(procName, procParams, null);
+	}
+
+	public <T> List<T> callProcedure(String procName, Class<T> resBean) throws DBException {
+		return callProcedure(procName, null, resBean);
+	}
+
+	public <T> List<T> callProcedure(String procName, DbParamsList procParams, Class<T> resBean) throws DBException {
 		Connection conn = null;
 		CallableStatement stm = null;
-		ResultSet resultSet = null;
-		int nValues = 0;
-		String params = "";
+		ResultSet rs = null;
 
-		if (dbParams != null) {
-			nValues = dbParams.size();
-			params = String.join("", Collections.nCopies(nValues, ",?")).substring(1);
-		}
-		
-		List<Object> result = new ArrayList<Object>();;
+		// builds and execute the statement with the given stored procedure
+		String params = procParams == null ?  "" : procParams.buildParamList();
 		String cmd = String.format("CALL %s(%s)", procName, params);
 		try {
 			conn = Connect();
 			stm = conn.prepareCall(cmd);
-			for (int i = 0; i < nValues; i++) {
-				DbParam param = dbParams.get(i);
-				if (param.isInt())
-					stm.setInt(i+1, param.getAsInt());
-				else if (param.isLong())
-					stm.setLong(i+1, param.getAsLong());
-				else
-					stm.setString(i+1, param.getAsStr());
-			}
+			if (procParams != null)
+				procParams.prepareParams(stm);
 			stm.execute();
-			resultSet = stm.getResultSet();
-			if (resultSet != null && resultSet.next()) {
-				for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++)
-					result.add(resultSet.getObject(i));
-			}
-		} catch (Exception e) {
-			Exception ex = new Exception(procName + ": " + e.getMessage());
-			ex.initCause(e);
-			throw ex;
+			rs = stm.getResultSet();
+			if (rs != null && resBean != null) {
+				List<T> result = new ArrayList<T>();
+				while (rs.next()) {
+					result.add((T) ResultSet2Bean(rs, resBean));
+				}
+				return result;
+			} else
+				return null;
+		} catch (SQLException ex) {
+			throw new DBException("Error executing "+procName, ex);
 		} finally {
-			Disconnect(resultSet, stm, conn);
+			Disconnect(rs, stm, conn);
 		}
-		return result;
 	}
 
 	/**
-	 * Execute a stored function
+	 * Executes a stored function
 	 * 
-	 * @param procName
-	 * @param dbParams [opt]
-	 * @return The function's result
-	 * @throws Exception
+	 * @param funName Name of the SF
+	 * @param procParams [opt] Parameters to be passed to the SF
+	 * @return The function result
+	 * @throws DBException
 	 */
-	public int executeFun(String funName) throws Exception {
-		return executeFun(funName, null);
+	public int execFunctionRetInt(String funName) throws DBException {
+		return execFunctionRetInt(funName, null);
 	}
 
-	public int executeFun(String funName, DbParamsList dbParams) throws Exception {
+	public int execFunctionRetInt(String funName, DbParamsList procParams) throws DBException {
 		Connection conn = null;
 		PreparedStatement stm = null;
-		ResultSet resultSet = null;
-		int nValues = 0;
-		String params = "";
+		ResultSet rs = null;
 
-		if (dbParams != null) {
-			nValues = dbParams.size();
-			params = String.join("", Collections.nCopies(nValues, ",?")).substring(1);
-		}
-		
-		int result;
+		// builds and execute the statement with the given stored function
+		String params = procParams == null ?  "" : procParams.buildParamList();
 		String cmd = String.format("SELECT %s(%s)", funName, params);
 		try {
 			conn = Connect();
 			stm = (PreparedStatement) conn.prepareStatement(cmd, ResultSet.TYPE_SCROLL_INSENSITIVE);
-			for (int i = 0; i < nValues; i++) {
-				DbParam param = dbParams.get(i);
-				if (param.isInt())
-					stm.setInt(i+1, param.getAsInt());
-				else if (param.isLong())
-					stm.setLong(i+1, param.getAsLong());
-				else
-					stm.setString(i+1, param.getAsStr());
-			}
-			resultSet = stm.executeQuery();
-			if (resultSet.next()) {
-				result = resultSet.getInt(1);
+			if (procParams != null)
+				procParams.prepareParams(stm);
+			rs = stm.executeQuery();
+			if (rs != null && rs.next()) {
+				return rs.getInt(1);
 			} else {
-				throw new Exception(funName + ": no valid resultset");
+				throw new DBException(funName + ": no valid resultset");
 			}
-		} catch (Exception e) {
-			Exception ex = new Exception(funName + ": " + e.getMessage());
-			ex.initCause(e);
-			throw ex;
+		} catch (SQLException ex) {
+			throw new DBException("Error executing "+funName, ex);
 		} finally {
-			Disconnect(resultSet, stm, conn);
+			Disconnect(rs, stm, conn);
 		}
-		return result;
 	}
 
 	// --------------------------------------------------------------------------------
@@ -194,4 +184,164 @@ public class Database {
 			} catch (SQLException e) {}
 		}
 	}
+
+	// --------------------------------------------------------------------------------
+	// BEAN MANAGEMENT
+	// --------------------------------------------------------------------------------
+
+	// A class (bean) may have properties of the following types:
+	// - boolean
+	// - byte
+	// - short
+	// - int
+	// - long
+	// - double
+	// - bytes[]
+	// - String
+	// - java.sql.Date
+	// - java.sql.Time
+	// - java.sql.Timestamp
+
+	/**
+	 * Converts a resultset row into an object of the given class
+	 * The target class must have the 'set<Property>' methods, where '<property>' are the columns names
+	 * 
+	 * @param rs DB resultset
+	 * @param bean The destination bean class
+	 * @return An object of class bean
+	 * @throws DBException
+	 */
+	private <T> T ResultSet2Bean(ResultSet rs, Class<T> bean) throws DBException {
+		T entity = null;
+		try {
+			entity = (T)bean.newInstance();
+			Method[] methods = entity.getClass().getMethods();
+			ResultSetMetaData metaData = rs.getMetaData();
+			int count = metaData.getColumnCount();
+			for (int i = 1; i <= count; i++) {
+				// for all columns...
+			    for (Method setter : methods) {
+			    	// checks if the setter exists...
+			        if (setter.getName().equalsIgnoreCase("set" + metaData.getColumnLabel(i))) { 
+			        	switch(metaData.getColumnType(i)) {
+		        		// boolean
+	        			case java.sql.Types.BOOLEAN:
+		        			setter.invoke(entity, rs.getBoolean(i));
+		        			break;
+		        		// byte
+		        		case java.sql.Types.TINYINT:
+		        			setter.invoke(entity, rs.getByte(i));
+		        			break;
+		        		// short
+		        		case java.sql.Types.SMALLINT:
+		        			setter.invoke(entity, rs.getShort(i));
+		        			break;
+		        		// int
+		        		case java.sql.Types.INTEGER:
+		        			setter.invoke(entity, rs.getInt(i));
+		        			break;
+		        		// long
+		        		case java.sql.Types.BIT:
+		        		case java.sql.Types.BIGINT:
+		        			setter.invoke(entity, rs.getLong(i));
+		        			break;
+		        		// double
+		        		case java.sql.Types.FLOAT:
+		        		case java.sql.Types.DOUBLE:
+		        		case java.sql.Types.REAL:
+		        		case java.sql.Types.NUMERIC:
+		        		case java.sql.Types.DECIMAL:
+		        			setter.invoke(entity, rs.getDouble(i));
+		        			break;
+		        		// bytes[]
+		        		case java.sql.Types.BLOB:
+		        		case java.sql.Types.CLOB:
+		        		case java.sql.Types.BINARY:
+		        		case java.sql.Types.VARBINARY:
+		        		case java.sql.Types.LONGVARBINARY:
+		        			setter.invoke(entity, rs.getBytes(i));
+		        			break;
+		        		// String
+		        		case java.sql.Types.CHAR:
+		        		case java.sql.Types.NCHAR:
+		        		case java.sql.Types.VARCHAR:
+		        		case java.sql.Types.NVARCHAR:
+		        		case java.sql.Types.LONGVARCHAR:
+		        		case java.sql.Types.LONGNVARCHAR:
+		        			if(rs.getString(i) == null || rs.getString(i) == "")
+		        				setter.invoke(entity, "");
+		        			else
+		        				setter.invoke(entity, rs.getString(i).trim());
+		        			break;
+		        		// java.sql.Date
+		        		case java.sql.Types.DATE:
+		        			setter.invoke(entity, rs.getDate(i));
+		        			break;
+		        		// java.sql.Time
+		        		case java.sql.Types.TIME:
+		        		case java.sql.Types.TIME_WITH_TIMEZONE:
+		        			setter.invoke(entity, rs.getTime(i));
+		        			break;
+		        		// java.sql.Timestamp
+		        		case java.sql.Types.TIMESTAMP:
+		        		case java.sql.Types.TIMESTAMP_WITH_TIMEZONE:
+		        			setter.invoke(entity, rs.getTimestamp(i));
+		        			break;
+		        		default:
+		        			throw new DBException("Datatype not implemented !");
+			        	}
+			        	break;
+			        }
+			    }			 
+			}
+		} catch (InstantiationException | IllegalAccessException | SQLException | IllegalArgumentException | InvocationTargetException e) {
+			throw new DBException(e.getMessage());
+		}
+		return entity;
+	}
+	/*
+	Remaining java.sql.Types
+	------------------------
+	static int ARRAY  SQL type ARRAY.
+	static int DATALINK  SQL type DATALINK.
+	static int DISTINCT  SQL type DISTINCT.
+	static int JAVA_OBJECT  SQL type JAVA_OBJECT.
+	static int NCLOB  SQL type NCLOB.
+	static int NULL  SQL value NULL.
+	static int OTHER  SQL type is database-specific
+	static int REF  SQL type REF.
+	static int REF_CURSOR  SQL type REF CURSOR.
+	static int ROWID  SQL type ROWID
+	static int SQLXML  SQL type XML.
+	static int STRUCT  SQL type STRUCT.
+
+	ResultSet
+	---------
+	Array 	getArray(int columnIndex)
+
+	InputStream 	getAsciiStream(int columnIndex)
+	InputStream 	getBinaryStream(int columnIndex)
+
+	java.math.BigDecimal 	getBigDecimal(int columnIndex)
+
+	Blob 	getBlob(int columnIndex)
+
+	java.io.Reader 	getCharacterStream(int columnIndex)
+	java.io.Reader 	getNCharacterStream(int columnIndex)
+
+	Clob 	getClob(int columnIndex)
+
+	NClob 	getNClob(int columnIndex)
+
+	Object 	getObject(int columnIndex)
+	Object 	getObject(int columnIndex, Map<String,Class<?>> map)
+
+	<T> T 	getObject(int columnIndex, Class<T> type)
+
+	Ref 	getRef(int columnIndex)
+
+	java.sql.RowId 	getRowId(int columnIndex)
+
+	java.sql.SQLXML 	getSQLXML(int columnIndex)
+	*/
 }
