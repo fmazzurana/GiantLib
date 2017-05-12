@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
+import org.codehaus.jackson.map.ObjectMapper;
+
 public class Utils {
 	
 	//-----------------------------------------------------------------------------------------------------
@@ -48,6 +50,26 @@ public class Utils {
 			return String.valueOf(chars);
 		} else
 			return "";
+	}
+	
+	/**
+	 * Checks for a valid string representation of an Id.
+	 * 
+	 * If the input string is null the returned Id is 0,
+	 * otherwise the number must be an integer greater than 0. 
+	 * 
+	 * @param s string to be verified
+	 * @return The id (even 0) or -1 if the id is bad
+	 */
+	public static long isValidId(String s) {
+		if (s == null)
+			return 0;
+		long id = -1;
+		try {
+			id = Long.parseLong(s);
+		} catch (NumberFormatException e) {
+		}
+		return id > 0 ? id : -1;
 	}
 	  
 	//-----------------------------------------------------------------------------------------------------
@@ -117,4 +139,47 @@ public class Utils {
 			throw new MyException(e.getMessage());
 		}
 	}
+	  
+	//-----------------------------------------------------------------------------------------------------
+	// JSON 
+	//-----------------------------------------------------------------------------------------------------
+	public static String object2JSonString(Object value) throws MyException {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			return mapper.writeValueAsString(value);
+		} catch (IOException e) {
+			throw new MyException(e.getMessage());
+		}
+	}
+	
+	public static <T> T JSonString2Object(String jsonString, Class<T> bean) throws MyException {
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			return mapper.readValue(jsonString, bean);
+		} catch (IOException e) {
+			throw new MyException(e.getMessage());
+		}
+	}
+
+//	
+//	@SuppressWarnings("unchecked")
+//	public  T[] fromJSON(String json) throws MyException {
+//		ObjectMapper mapper = new ObjectMapper();
+//		//mapper.disable(Feature.USE_GETTERS_AS_SETTERS);
+//		T[] lista = null;
+//		if (json != null && !json.isEmpty()) {
+//			try {
+//				lista = (T[]) mapper.readValue(json, (Class<T>) this.getClass());
+//			} catch (Exception e) {
+//				throw new MyException(e.getMessage());
+//			}
+//		}
+//		return lista;
+//	}
+	
+//	public JSONObject toJSONObject() {
+//		ObjectMapper mapper = new ObjectMapper();
+//		//mapper.configure(Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+//		return mapper.convertValue(this, JSONObject.class);
+//	}
 }

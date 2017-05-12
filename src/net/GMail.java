@@ -1,4 +1,4 @@
-package commons;
+package net;
 
 import java.util.List;
 import java.util.Properties;
@@ -9,6 +9,8 @@ import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+
+import commons.MyException;
 
 public class GMail {
 
