@@ -57,34 +57,34 @@ public class DbParam {
 	}
 	
 	// getters
-	public int getAsInt() throws DBException {
+	public int getAsInt() throws DbException {
 		if (isInt())
 			return v_int;
 		else
-			throw new DBException("The value is not of type integer.");
+			throw new DbException("The value is not of type integer.");
 	}
-	public long getAsLong() throws DBException {
+	public long getAsLong() throws DbException {
 		if (isLong())
 			return v_long;
 		else
-			throw new DBException("The value is not of type long.");
+			throw new DbException("The value is not of type long.");
 	}
-	public String getAsStr() throws DBException {
+	public String getAsStr() throws DbException {
 		if (isString())
 			return v_string;
 		else
-			throw new DBException("The value is not of type string.");
+			throw new DbException("The value is not of type string.");
 	}
-	public byte[] getAsByteArray() throws DBException {
+	public byte[] getAsByteArray() throws DbException {
 		if (isByteArray())
 			return v_byteArray;
 		else
-			throw new DBException("The value is not of type byte array.");
+			throw new DbException("The value is not of type byte array.");
 	}
-	public Timestamp getAsTimestamp() throws DBException {
+	public Timestamp getAsTimestamp() throws DbException {
 		if (isTimestamp())
 			return v_timestamp;
 		else
-			throw new DBException("The value is not of type timestamp.");
+			throw new DbException("The value is not of type timestamp.");
 	}
 }

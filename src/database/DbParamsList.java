@@ -62,9 +62,9 @@ public class DbParamsList {
 	 * Prepares the statement with the parameters list
 	 * 
 	 * @param stm
-	 * @throws DBException
+	 * @throws DbException
 	 */
-	public void prepareParams(PreparedStatement stm) throws DBException {
+	public void prepareParams(PreparedStatement stm) throws DbException {
 		try {
 			for (int i = 0; i < params.size(); i++) {
 				DbParam param = params.get(i);
@@ -85,11 +85,11 @@ public class DbParamsList {
 					stm.setTimestamp(i+1, param.getAsTimestamp());
 					break;
 				default:
-					throw new DBException("Unknown parameter type.");
+					throw new DbException("Unknown parameter type.");
 				}
 			}
-		} catch (SQLException | DBException ex) {
-			throw new DBException("Error setting the parameters list.", ex);
+		} catch (SQLException | DbException ex) {
+			throw new DbException("Error setting the parameters list.", ex);
 		}
 	}
 }

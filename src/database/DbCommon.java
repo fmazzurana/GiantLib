@@ -2,141 +2,26 @@ package database;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.Statement;
 
-import commons.MyException;
-import commons.MyProperties;
+public class DbCommon {
 
-public class Database {
-
-	// properties
-	private String user, password, connStr;
+	protected String connStr;
 	
-	/**
-	 * Constructor: gets the db properties.
-	 * The property file must contain the 'db.*' properties
-	 * 
-	 * @param propFile
-	 * @throws DBException 
-	 */
-	public Database(String propFile) throws DBException {
+	public DbCommon(String driver) throws DbException {
 		try {
-			MyProperties prop = new MyProperties(propFile);
-			String url = prop.getString("db.url", "localhost");
-			int port = prop.getInt("db.port", 3306);
-			String dbName = prop.getString("db.dbname");
-			String extras = prop.getString("db.extraparams", "");
-			user = prop.getString("db.username");
-			password = prop.getString("db.password");
-			connStr = String.format("jdbc:mysql://%s:%d/%s", url, port, dbName);
-			if (!extras.isEmpty())
-				connStr += "?" + extras;
-		} catch (MyException ex) {
-			throw new DBException("Error reading the properties file.", ex);
+			Class.forName(driver);
+		} catch (ClassNotFoundException e) {
+			throw new DbException("JDBC Driver not found: "+driver, e);
 		}
 	}
 	
-
-	// --------------------------------------------------------------------------------
-	// PUBLICS
-	// --------------------------------------------------------------------------------
-	/**
-	 * Calls a stored procedure
-	 *  
-	 * @param procName Name of the SP
-	 * @param procParams [opt] Parameters to be passed to the SP
-	 * @param resBean Resultset bean
-	 * @return Result A List of result beans or null
-	 * @throws DBException
-	 */
-	public <T> List<T> callProcedure(String procName) throws DBException {
-		return callProcedure(procName, null, null);
-	}
-
-	public <T> List<T> callProcedure(String procName, DbParamsList procParams) throws DBException {
-		return callProcedure(procName, procParams, null);
-	}
-
-	public <T> List<T> callProcedure(String procName, Class<T> resBean) throws DBException {
-		return callProcedure(procName, null, resBean);
-	}
-
-	public <T> List<T> callProcedure(String procName, DbParamsList procParams, Class<T> resBean) throws DBException {
-		Connection conn = null;
-		CallableStatement stm = null;
-		ResultSet rs = null;
-
-		// builds and execute the statement with the given stored procedure
-		String params = procParams == null ?  "" : procParams.buildParamList();
-		String cmd = String.format("CALL %s(%s)", procName, params);
-		try {
-			conn = Connect();
-			stm = conn.prepareCall(cmd);
-			if (procParams != null)
-				procParams.prepareParams(stm);
-			stm.execute();
-			rs = stm.getResultSet();
-			if (rs != null && resBean != null) {
-				List<T> result = new ArrayList<T>();
-				while (rs.next()) {
-					result.add((T) ResultSet2Bean(rs, resBean));
-				}
-				return result;
-			} else
-				return null;
-		} catch (SQLException ex) {
-			throw new DBException("Error executing "+procName, ex);
-		} finally {
-			Disconnect(rs, stm, conn);
-		}
-	}
-
-	/**
-	 * Executes a stored function
-	 * 
-	 * @param funName Name of the SF
-	 * @param procParams [opt] Parameters to be passed to the SF
-	 * @return The function result
-	 * @throws DBException
-	 */
-	public int execFunctionRetInt(String funName) throws DBException {
-		return execFunctionRetInt(funName, null);
-	}
-
-	public int execFunctionRetInt(String funName, DbParamsList procParams) throws DBException {
-		Connection conn = null;
-		PreparedStatement stm = null;
-		ResultSet rs = null;
-
-		// builds and execute the statement with the given stored function
-		String params = procParams == null ?  "" : procParams.buildParamList();
-		String cmd = String.format("SELECT %s(%s)", funName, params);
-		try {
-			conn = Connect();
-			stm = (PreparedStatement) conn.prepareStatement(cmd, ResultSet.TYPE_SCROLL_INSENSITIVE);
-			if (procParams != null)
-				procParams.prepareParams(stm);
-			rs = stm.executeQuery();
-			if (rs != null && rs.next()) {
-				return rs.getInt(1);
-			} else {
-				throw new DBException(funName + ": no valid resultset");
-			}
-		} catch (SQLException ex) {
-			throw new DBException("Error executing "+funName, ex);
-		} finally {
-			Disconnect(rs, stm, conn);
-		}
-	}
-
 	// --------------------------------------------------------------------------------
 	// PRIVATES
 	// --------------------------------------------------------------------------------
@@ -144,22 +29,26 @@ public class Database {
 	/**
 	 * Tries to establish a database connection
 	 * 
+	 * @param user [opz]
+	 * @param password [opz]
 	 * @return A valid DB connection
-	 * @throws DBException In case of error 'lastErr' is set
+	 * @throws DbException In case of error 'lastErr' is set
 	 */
-	private Connection Connect() throws DBException {
+	protected Connection Connect() throws DbException {
 		try {
-			Class.forName("com.mysql.jdbc.Driver");
-		} catch (ClassNotFoundException e) {
-			throw new DBException("MySQL JDBC Driver not found: " + e.getMessage());
+			return DriverManager.getConnection(connStr);
+		} catch (SQLException e) {
+			throw new DbException("Error connecting to the DB: " + e.getMessage());
 		}
+	}
+	protected Connection Connect(String user, String password) throws DbException {
 		try {
 			return DriverManager.getConnection(connStr, user, password);
 		} catch (SQLException e) {
-			throw new DBException("Error connecting to the DB: " + e.getMessage());
+			throw new DbException("Error connecting to the DB: " + e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * Tries to close a database connection (the statement and the result also)
 	 * 
@@ -167,7 +56,24 @@ public class Database {
 	 * @param stm
 	 * @param conn
 	 */
-	private void Disconnect(ResultSet rs, PreparedStatement stm, Connection conn) {
+	protected void Disconnect(ResultSet rs, PreparedStatement stm, Connection conn) {
+		if (rs != null) {
+			try {
+				rs.close();
+			} catch (SQLException e) {}
+		}
+		if (stm != null) {
+			try {
+				stm.close();
+			} catch (SQLException e) {}
+		}
+		if (conn != null) {
+			try {
+				conn.close();
+			} catch (SQLException e) {}
+		}
+	}
+	protected void Disconnect(ResultSet rs, Statement stm, Connection conn) {
 		if (rs != null) {
 			try {
 				rs.close();
@@ -209,9 +115,9 @@ public class Database {
 	 * @param rs DB resultset
 	 * @param bean The destination bean class
 	 * @return An object of class bean
-	 * @throws DBException
+	 * @throws DbException
 	 */
-	private <T> T ResultSet2Bean(ResultSet rs, Class<T> bean) throws DBException {
+	protected <T> T ResultSet2Bean(ResultSet rs, Class<T> bean) throws DbException {
 		T entity = null;
 		try {
 			entity = (T)bean.newInstance();
@@ -288,14 +194,14 @@ public class Database {
 		        			setter.invoke(entity, rs.getTimestamp(i));
 		        			break;
 		        		default:
-		        			throw new DBException("Datatype not implemented !");
+		        			throw new DbException("Datatype not implemented !");
 			        	}
 			        	break;
 			        }
 			    }			 
 			}
 		} catch (InstantiationException | IllegalAccessException | SQLException | IllegalArgumentException | InvocationTargetException e) {
-			throw new DBException(e.getMessage());
+			throw new DbException(e.getMessage());
 		}
 		return entity;
 	}
