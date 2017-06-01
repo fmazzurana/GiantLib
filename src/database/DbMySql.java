@@ -8,8 +8,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import commons.MyException;
-import commons.MyProperties;
+import beans.ParamBean;
+import commons.Utils;
 
 /**
  * Allows the execution of Stored Procedure & Functions
@@ -18,40 +18,73 @@ import commons.MyProperties;
  * @author Fabrizio Mazzurana
  *
  */
-public class DbMySql extends DbCommon {
+public class DbMySql extends Database {
+
+	// --------------------------------------------------------------------------------------------
+	// Constants
+	// --------------------------------------------------------------------------------------------
+	//private static final String defUrl    = "localhost";
+	private static final String defUrl    = "192.168.178.3";
+	//private static final String defUrl    = "fmazzurana.noip.me";
+	private static final int    defPort   = 3306;
+	private static final String defUsr    = "giant";
+	private static final String defPwd    = "Eir3annach";
+	private static final String defExtras = "";
+	//private static final String defExtras = "autoReconnect=true&useSSL=false";
+
+	private static final String typeString  = "String";
+	private static final String typeInteger = "Integer";
+	private static final String typeDouble  = "Double";
+	private static final String typeBoolean = "Boolean";
+	private static final String invalidValue = "The parameter is not a valid %s value: %s.";
 
 	// properties
 	private String user, password;
+	private String paramReadProc;
+	private String paramWriteProc;
 	
 	/**
-	 * Constructor: gets the db properties.
-	 * The property file must contain the 'db.*' properties
+	 * Constructor
 	 * 
-	 * @param propFile
-	 * @throws DbException 
+	 * @param dbname
+	 * @param url [opt]
+	 * @param port [opt]
+	 * @param usr [opt]
+	 * @param pwd [opt]
+	 * @param extras [opt]
+	 * @throws DbException
 	 */
-	public DbMySql(String propFile) throws DbException {
+	public DbMySql(String dbname) throws DbException {
 		super("com.mysql.jdbc.Driver");
-		
-		try {
-			MyProperties prop = new MyProperties(propFile);
-			String url = prop.getString("db.url", "localhost");
-			int port = prop.getInt("db.port", 3306);
-			String dbName = prop.getString("db.dbname");
-			String extras = prop.getString("db.extraparams", "");
-			user = prop.getString("db.username");
-			password = prop.getString("db.password");
-			super.connStr = String.format("jdbc:mysql://%s:%d/%s", url, port, dbName);
-			if (!extras.isEmpty())
-				super.connStr += "?" + extras;
-		} catch (MyException ex) {
-			throw new DbException("Error reading the properties file.", ex);
-		}
+		init(dbname, defUrl, defPort, defUsr, defPwd, defExtras);
 	}
 	
+	public DbMySql(String dbname, String url, int port, String usr, String pwd, String extras) throws DbException {
+		super("com.mysql.jdbc.Driver");
+		init(dbname, url, port, usr, pwd, extras);
+	}
+
+	private void init(String dbname, String url, int port, String usr, String pwd, String extras) throws DbException {
+		if (Utils.isEmptyString(dbname))
+			throw new DbException("Null or empty dbname");
+		if (Utils.isEmptyString(url))
+			throw new DbException("Null or empty url");
+		if (port <= 0)
+			throw new DbException("Invalid port number");
+		// defines the jdbc driver & connections string
+		super.connStr = String.format("jdbc:mysql://%s:%d/%s", url, port, dbname);
+		if (!Utils.isEmptyString(extras))
+			super.connStr += "?" + extras;
+		user = usr;
+		password = pwd;
+		
+		// defines the default parameters read/write procedures
+		paramReadProc = "p_paramsRead";
+		paramWriteProc = "p_paramsWrite";
+	}
 
 	// --------------------------------------------------------------------------------
-	// PUBLICS
+	// PROCEDURES & FUNCTIONS CALL
 	// --------------------------------------------------------------------------------
 	/**
 	 * Calls a stored procedure
@@ -140,5 +173,105 @@ public class DbMySql extends DbCommon {
 		} finally {
 			Disconnect(rs, stm, conn);
 		}
+	}
+
+
+	// --------------------------------------------------------------------------------
+	// PARAMETERS
+	// --------------------------------------------------------------------------------
+	public void setParamReadProcedure(String procName) {
+		paramReadProc = procName;
+	}
+
+	public void setParamWriteProcedure(String procName) {
+		paramWriteProc = procName;
+	}
+	
+	/**
+	 * These methods get a parameter from the DB
+	 *  
+	 * @param name Name of the parameter
+	 * @return Parameter's value
+	 * @throws DBException
+	 */
+	public String getParamAsString(String name) throws DbException {
+		return paramRead(name, typeString);
+	}
+	public int getParamAsInteger(String name) throws DbException {
+		String value = paramRead(name, typeInteger);
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			throw new DbException(String.format(invalidValue, typeInteger, value));
+		}
+	}
+	public double getParamAsDouble(String name) throws DbException {
+		String value = paramRead(name, typeDouble);
+		try {
+			return Double.parseDouble(value);
+		} catch (NumberFormatException e) {
+			throw new DbException(String.format(invalidValue, typeDouble, value));
+		}
+	}
+	public Boolean getParamAsBoolean(String name) throws DbException {
+		String value = paramRead(name, typeBoolean);
+		return Boolean.parseBoolean(value);
+	}
+	
+	/**
+	 * These methods write a parameter to the DB (update or create)
+	 *  
+	 * @param name Name of the parameter
+	 * @param value New value for the parameter
+	 * @throws DBException
+	 */
+	public void setParamAsString(String name, String value) throws DbException {
+		paramWrite(typeString, name, value);
+	}
+	public void setParamAsInteger(String name, int value) throws DbException {
+		paramWrite(typeInteger, name, Integer.toString(value));
+	}
+	public void setParamAsDouble(String name, double value) throws DbException {
+		paramWrite(typeDouble, name, Double.toString(value));
+	}
+	public void setParamAsBoolean(String name, Boolean value) throws DbException {
+		paramWrite(typeBoolean, name, Boolean.toString(value));
+	}
+
+	
+	/**
+	 * Main method to read a parameter from the DB
+	 * 
+	 * @param name
+	 * @param type
+	 * @return
+	 * @throws DbException
+	 */
+	private String paramRead(String name, String type) throws DbException {
+		DbParamsList params = new DbParamsList();
+		params.add(name);
+		List<ParamBean> param = callProcedure(paramReadProc, params, ParamBean.class);
+		if (param != null && param.size() == 1) {
+			if (param.get(0).getType().equalsIgnoreCase(type))
+				return param.get(0).getValue();
+			else
+				throw new DbException(String.format("The parameter is not of type %s.", type));
+		} else
+			throw new DbException(String.format("Parameter not found: %s", name));
+	}
+
+	/**
+	 * Main method to writes a parameter to the DB
+	 * 
+	 * @param name
+	 * @param value
+	 * @throws DbException
+	 */
+	private void paramWrite(String type, String name, String value) throws DbException {
+		DbParamsList params = new DbParamsList();
+		params.add(type);
+		params.add(name);
+		params.add(value);
+		callProcedure(paramWriteProc, params);
 	}
 }

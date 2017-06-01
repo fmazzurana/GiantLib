@@ -1,13 +1,18 @@
 package commons;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.codehaus.jackson.map.ObjectMapper;
@@ -35,12 +40,36 @@ public class Utils {
 		s = s.replaceAll("<ora>", sdfOra.format(date));
 		return s;
 	}
+
+	public static Date yyyymmdd2Date(String s) throws ParseException {
+		SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+		return formatter.parse(s);
+	}
+	
+	/**
+	 * Converts a datetime into a formatted string
+	 * 
+	 * @param todayOffset Days to be added at the current date (+1: tomorrow, -1:yesterday)
+	 * @param dtFormat Format to be used. ie 'yyyy-MM-dd HH:mm:ss'
+	 * @return The formatted string
+	 */
+	public static String Date2String(int todayOffset, String dtFormat) {
+		LocalDateTime day = LocalDateTime.now().plusDays(todayOffset);
+		return day.format(DateTimeFormatter.ofPattern(dtFormat));
+	}
 	
 	//-----------------------------------------------------------------------------------------------------
 	// Strings 
 	//-----------------------------------------------------------------------------------------------------
 	public static boolean isEmptyString(String s) {
 		return s == null || s.trim().isEmpty();
+	}
+	
+	public static String List2Text(List<String> lines) {
+		String text = "";
+		for (String line : lines)
+			text += line + "\n";
+		return text;
 	}
 	
 	public static String stringOfChar(char c, int n) {
@@ -98,6 +127,13 @@ public class Utils {
         return pos > 0 ? fileName.substring(pos+1) : "";
     }
 
+	public static boolean createDirectory(String name) {
+		if (isEmptyString(name))
+			return false;
+		File dir = new File(name);
+		return dir.exists() || dir.mkdir();
+    }
+
 	public static void removeDirectory(File dir) {
 		if (dir.isDirectory()) {
 			File[] files = dir.listFiles();
@@ -124,6 +160,10 @@ public class Utils {
 		}
 	}
 
+	public static File[] listDirectory(File dir) {
+		return dir.exists() && dir.isDirectory() ? dir.listFiles() : null;
+	}
+
 	/**
 	 * This method reads a file into a string.
 	 * 
@@ -131,7 +171,7 @@ public class Utils {
 	 * @return String containing all the file
 	 * @throws MyException 
 	 */
-	public static String readFile(String path) throws MyException { 
+	public static String readFile(String path) throws MyException {
 		try {
 			byte[] encoded = Files.readAllBytes(Paths.get(path));
 			return new String(encoded, Charset.defaultCharset());
@@ -140,6 +180,21 @@ public class Utils {
 		}
 	}
 	  
+	public static void writeToFile(List<String> lines, String path) throws MyException {
+		if (lines == null || lines.isEmpty())
+			return;
+
+		try {
+			FileWriter writer = new FileWriter(path);
+			for (String line : lines) {
+				writer.write(line+"\n");
+			}
+			writer.close();
+		} catch (IOException e) {
+			throw new MyException(e.getMessage());
+		}
+	}
+
 	//-----------------------------------------------------------------------------------------------------
 	// JSON 
 	//-----------------------------------------------------------------------------------------------------

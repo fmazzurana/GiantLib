@@ -7,7 +7,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DbSQLite extends DbCommon {
+public class DbSQLite extends Database {
 
 	public DbSQLite(String filename) throws DbException {
 		super("org.sqlite.JDBC");

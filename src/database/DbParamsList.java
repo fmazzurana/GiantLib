@@ -32,6 +32,7 @@ public class DbParamsList {
 		return params.get(idx);
 	}
 	
+	
 	public void add(int value) {
 		params.add(new DbParam(value));
 	}
@@ -46,6 +47,23 @@ public class DbParamsList {
 	}
 	public void add(Timestamp value) {
 		params.add(new DbParam(value));
+	}
+	
+	
+	public void modify(int idx, int value) {
+		params.get(idx).modify(value);
+	}
+	public void modify(int idx, long value) {
+		params.get(idx).modify(value);
+	}
+	public void modify(int idx, String value) {
+		params.get(idx).modify(value);
+	}
+	public void modify(int idx, byte[] value) {
+		params.get(idx).modify(value);
+	}
+	public void modify(int idx, Timestamp value) {
+		params.get(idx).modify(value);
 	}
 	
 	/**

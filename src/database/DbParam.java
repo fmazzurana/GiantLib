@@ -36,6 +36,27 @@ public class DbParam {
 		v_timestamp = value;
 	}
 	
+	public void modify(int value) {
+		type = dbType.DB_INTEGER;
+		v_int = value;
+	}
+	public void modify(long value) {
+		type = dbType.DB_LONG;
+		v_long = value;
+	}
+	public void modify(String value) {
+		type = dbType.DB_STRING;
+		v_string = value;
+	}
+	public void modify(byte[] value) {
+		type = dbType.DB_BYTEARRAY;
+		v_byteArray = value;
+	}
+	public void modify(Timestamp value) {
+		type = dbType.DB_TIMESTAMP;
+		v_timestamp = value;
+	}
+	
 	// public methods
 	public dbType getType() {
 		return type;

@@ -10,11 +10,11 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class DbCommon {
+public class Database {
 
 	protected String connStr;
 	
-	public DbCommon(String driver) throws DbException {
+	public Database(String driver) throws DbException {
 		try {
 			Class.forName(driver);
 		} catch (ClassNotFoundException e) {
@@ -23,7 +23,7 @@ public class DbCommon {
 	}
 	
 	// --------------------------------------------------------------------------------
-	// PRIVATES
+	// PROTECTED
 	// --------------------------------------------------------------------------------
 
 	/**
@@ -117,9 +117,19 @@ public class DbCommon {
 	 * @return An object of class bean
 	 * @throws DbException
 	 */
+	@SuppressWarnings("unchecked")
 	protected <T> T ResultSet2Bean(ResultSet rs, Class<T> bean) throws DbException {
 		T entity = null;
 		try {
+			if (bean == String.class) {
+				String result;
+				if (rs.getString(1) == null || rs.getString(1) == "")
+					result = "";
+				else
+					result = rs.getString(1).trim();
+				return (T) result;
+			}
+
 			entity = (T)bean.newInstance();
 			Method[] methods = entity.getClass().getMethods();
 			ResultSetMetaData metaData = rs.getMetaData();
