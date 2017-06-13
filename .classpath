@@ -18,5 +18,6 @@
 	<classpathentry kind="var" path="JARS_REPO/log4j-core-2.7.jar"/>
 	<classpathentry kind="var" path="JARS_REPO/jersey-client.jar"/>
 	<classpathentry kind="var" path="JARS_REPO/jersey-core.jar"/>
+	<classpathentry kind="var" path="JARS_REPO"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
